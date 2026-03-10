@@ -1,0 +1,32 @@
+{
+  "name": "clinic-chatbot-backend",
+  "version": "1.0.0",
+  "description": "chatbot backend for dental clinics",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Madsfredag/clinic-chatbot-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Madsfredag/clinic-chatbot-backend/issues"
+  },
+  "homepage": "https://github.com/Madsfredag/clinic-chatbot-backend#readme",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
