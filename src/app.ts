@@ -3,6 +3,7 @@ import helmet from "helmet";
 
 import { healthRouter } from "./routes/health.js";
 import { chatRouter } from "./routes/chat.js";
+import { pricesRouter } from "./routes/prices.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 export function createApp() {
@@ -27,6 +28,7 @@ export function createApp() {
 
   app.use("/health", healthRouter);
   app.use("/api/chat", chatRouter);
+  app.use("/api/clinic/prices", pricesRouter);
   app.use(errorHandler);
 
   return app;

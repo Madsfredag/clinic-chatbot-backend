@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { TenantConfig } from "../config/tenants.js";
 
 type KnowledgeChunk = {
   source: string;
@@ -74,31 +73,38 @@ async function readFileIfExists(filePath: string): Promise<string> {
 }
 
 export async function getRelevantKnowledge(
-  tenant: TenantConfig,
-  userMessage: string,
+  clinicId: string,
+  userMessage: string
 ): Promise<KnowledgeChunk[]> {
   const projectRoot = process.cwd();
 
-  const commonPath = path.join(projectRoot, "src", "knowledge", "common", "dental.md");
-  const tenantPath = path.join(
+  const commonPath = path.join(
     projectRoot,
     "src",
     "knowledge",
-    "tenants",
-    tenant.clinicId,
-    "clinic.md",
+    "common",
+    "dental.md"
   );
 
-  const [commonText, tenantText] = await Promise.all([
+  const clinicPath = path.join(
+    projectRoot,
+    "src",
+    "knowledge",
+    "clinics",
+    clinicId,
+    "clinic.md"
+  );
+
+  const [commonText, clinicText] = await Promise.all([
     readFileIfExists(commonPath),
-    readFileIfExists(tenantPath),
+    readFileIfExists(clinicPath),
   ]);
 
   const sources: KnowledgeChunk[] = [];
 
-  if (tenantText) {
-    for (const chunk of splitIntoChunks(tenantText)) {
-      sources.push({ source: "tenant", text: chunk });
+  if (clinicText) {
+    for (const chunk of splitIntoChunks(clinicText)) {
+      sources.push({ source: "clinic", text: chunk });
     }
   }
 

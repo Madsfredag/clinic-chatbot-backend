@@ -9,6 +9,13 @@ const chatRequestSchema = z.object({
   message: z.string().min(1).max(4000),
   sessionId: z.string().min(1).max(200),
   pageUrl: z.string().url().max(2000),
+
+  clinic: z.object({
+    clinicName: z.string().min(1),
+    phone: z.string().min(1),
+    address: z.string().min(1),
+    bookingUrl: z.string().url(),
+  }),
 });
 
 chatRouter.post("/", verifySignature, async (req, res, next) => {
@@ -30,11 +37,15 @@ chatRouter.post("/", verifySignature, async (req, res, next) => {
       });
     }
 
-    const reply = await createChatReply({
-      tenant,
-      message: parsed.data.message,
-      pageUrl: parsed.data.pageUrl,
-    });
+    const { message, sessionId, pageUrl, clinic } = parsed.data;
+
+const reply = await createChatReply({
+  tenant,
+  clinic,
+  message,
+  sessionId,
+  pageUrl,
+});
 
     return res.status(200).json({ reply });
   } catch (error) {

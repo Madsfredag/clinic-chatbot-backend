@@ -1,9 +1,15 @@
 import { env } from "../config/env.js";
 
+type ConversationMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
 type GenerateReplyInput = {
   systemPrompt: string;
   clinicContext: string;
   knowledgeContext: string;
+  conversationHistory: ConversationMessage[];
   userMessage: string;
 };
 
@@ -56,6 +62,16 @@ function extractOutputText(payload: unknown): string {
 }
 
 export async function generateAiReply(input: GenerateReplyInput): Promise<string> {
+  const historyMessages = input.conversationHistory.map((message) => ({
+    role: message.role,
+    content: [
+      {
+        type: "input_text" as const,
+        text: message.text,
+      },
+    ],
+  }));
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -90,6 +106,7 @@ export async function generateAiReply(input: GenerateReplyInput): Promise<string
             },
           ],
         },
+        ...historyMessages,
         {
           role: "user",
           content: [

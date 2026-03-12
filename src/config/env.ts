@@ -5,10 +5,21 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
   PORT: z.coerce.number().int().positive().default(3000),
-  ALLOWED_TIMESTAMP_SKEW_SECONDS: z.coerce.number().int().positive().default(300),
+
+  ALLOWED_TIMESTAMP_SKEW_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300),
+
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_MODEL: z.string().min(1),
+
+  // Tenant secrets
+  SECRET_VIDESIGNERSMIL: z.string().min(1),
+  SECRET_FORTANDEN: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);
