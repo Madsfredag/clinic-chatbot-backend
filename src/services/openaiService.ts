@@ -66,7 +66,7 @@ export async function generateAiReply(input: GenerateReplyInput): Promise<string
     role: message.role,
     content: [
       {
-        type: "input_text" as const,
+        type: message.role === "assistant" ? "output_text" : "input_text",
         text: message.text,
       },
     ],

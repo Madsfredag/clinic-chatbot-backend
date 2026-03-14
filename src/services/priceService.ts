@@ -1,9 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export type PriceTable = {
+export type PriceSheet = {
   headers: string[];
   rows: string[][];
+};
+
+export type PriceWorkbook = {
+  sheets: Record<string, PriceSheet>;
 };
 
 function getClinicDataDir(clinicId: string): string {
@@ -15,88 +19,135 @@ function getPricesFilePath(clinicId: string): string {
   return path.join(getClinicDataDir(clinicId), "prices.json");
 }
 
-export async function saveClinicPriceTable(
-  clinicId: string,
-  table: PriceTable
-): Promise<void> {
-  const dir = getClinicDataDir(clinicId);
-  await fs.mkdir(dir, { recursive: true });
+function normalizeCell(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
 
-  const filePath = getPricesFilePath(clinicId);
-  await fs.writeFile(filePath, JSON.stringify(table, null, 2), "utf8");
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim();
 }
 
-export async function loadClinicPriceTable(
-  clinicId: string
-): Promise<PriceTable | null> {
-  const filePath = getPricesFilePath(clinicId);
+function trimTrailingEmptyCells(cells: string[]): string[] {
+  let end = cells.length;
 
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed: unknown = JSON.parse(raw);
+  while (end > 0 && cells[end - 1] === "") {
+    end -= 1;
+  }
 
-    if (typeof parsed !== "object" || parsed === null) {
-      return null;
-    }
+  return cells.slice(0, end);
+}
 
-    const maybeHeaders = (parsed as { headers?: unknown }).headers;
-    const maybeRows = (parsed as { rows?: unknown }).rows;
+function normalizeHeaders(headers: unknown[]): string[] {
+  const normalized = headers.map((value, index) => {
+    const cell = normalizeCell(value);
+    return cell === "" ? `Kolonne ${index + 1}` : cell;
+  });
 
-    if (!Array.isArray(maybeHeaders) || !Array.isArray(maybeRows)) {
-      return null;
-    }
+  return trimTrailingEmptyCells(normalized);
+}
 
-    const headers = maybeHeaders.filter(
-      (value): value is string => typeof value === "string"
-    );
+function normalizeRows(rows: unknown[], headerCount: number): string[][] {
+  return rows
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.map((cell) => normalizeCell(cell)))
+    .map((row) => {
+      const trimmed = trimTrailingEmptyCells(row);
+      const sliced = trimmed.slice(0, headerCount);
 
-    const rows = maybeRows
-      .filter((row): row is unknown[] => Array.isArray(row))
-      .map((row) =>
-        row.map((cell) => (typeof cell === "string" ? cell : String(cell)))
-      );
+      while (sliced.length < headerCount) {
+        sliced.push("");
+      }
 
-    return {
-      headers,
-      rows,
-    };
-  } catch {
+      return sliced;
+    })
+    .filter((row) => row.some((cell) => cell !== ""));
+}
+
+function normalizeSheet(input: unknown): PriceSheet | null {
+  if (typeof input !== "object" || input === null) {
     return null;
   }
-}
 
-function parseCsvLine(line: string): string[] {
-  return line.split(",").map((cell) => cell.trim());
-}
+  const maybeHeaders = (input as { headers?: unknown }).headers;
+  const maybeRows = (input as { rows?: unknown }).rows;
 
-export function parseCsv(csvContent: string): PriceTable {
-  const lines = csvContent
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const firstLine = lines.find((line) => line.length > 0);
-
-  if (typeof firstLine !== "string") {
-    throw new Error("CSV file is empty");
+  if (!Array.isArray(maybeHeaders) || !Array.isArray(maybeRows)) {
+    return null;
   }
 
-  const headers = parseCsvLine(firstLine);
+  const headers = normalizeHeaders(maybeHeaders);
 
-  const rows: string[][] = [];
-  let isFirstDataLine = true;
-
-  for (const line of lines) {
-    if (isFirstDataLine) {
-      isFirstDataLine = false;
-      continue;
-    }
-
-    rows.push(parseCsvLine(line));
+  if (headers.length === 0) {
+    return null;
   }
+
+  const rows = normalizeRows(maybeRows, headers.length);
 
   return {
     headers,
     rows,
   };
+}
+
+export function normalizePriceWorkbook(input: unknown): PriceWorkbook | null {
+  if (typeof input !== "object" || input === null) {
+    return null;
+  }
+
+  const maybeSheets = (input as { sheets?: unknown }).sheets;
+
+  if (typeof maybeSheets !== "object" || maybeSheets === null) {
+    return null;
+  }
+
+  const sheets: Record<string, PriceSheet> = {};
+
+  for (const [key, value] of Object.entries(maybeSheets as Record<string, unknown>)) {
+    const trimmedKey = key.trim();
+
+    if (trimmedKey === "") {
+      continue;
+    }
+
+    const normalizedSheet = normalizeSheet(value);
+
+    if (normalizedSheet) {
+      sheets[trimmedKey] = normalizedSheet;
+    }
+  }
+
+  if (Object.keys(sheets).length === 0) {
+    return null;
+  }
+
+  return { sheets };
+}
+
+export async function saveClinicPriceWorkbook(
+  clinicId: string,
+  workbook: PriceWorkbook
+): Promise<void> {
+  const dir = getClinicDataDir(clinicId);
+  await fs.mkdir(dir, { recursive: true });
+
+  const filePath = getPricesFilePath(clinicId);
+  await fs.writeFile(filePath, JSON.stringify(workbook, null, 2), "utf8");
+}
+
+export async function loadClinicPriceWorkbook(
+  clinicId: string
+): Promise<PriceWorkbook | null> {
+  const filePath = getPricesFilePath(clinicId);
+
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    return normalizePriceWorkbook(parsed);
+  } catch {
+    return null;
+  }
 }
